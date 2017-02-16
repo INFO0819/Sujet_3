@@ -6,6 +6,8 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -63,7 +65,24 @@ public class ButtonClient1 extends JButton implements MouseListener {
 		fenetreClient.setLocationRelativeTo(null);
 		fenetreClient.setLayout(new FlowLayout());
 		fenetreClient.setVisible(true); 
+		
+		
+		InetAddress LocaleAdresse ;
+		InetAddress ServeurAdresse;
+
+		try {
+
+			LocaleAdresse = InetAddress.getLocalHost();
+			System.out.println("L'adresse locale est : "+LocaleAdresse ); 
+			
+			
+		
+		} catch (UnknownHostException e) {
+			
+			e.printStackTrace();
+		}
 	}
+	
 
 	@Override
 	public void mouseEntered(MouseEvent arg0) {
@@ -87,6 +106,34 @@ public class ButtonClient1 extends JButton implements MouseListener {
 	public void mouseReleased(MouseEvent arg0) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public Image getImg() {
+		return img;
+	}
+
+	public void setImg(Image img) {
+		this.img = img;
+	}
+
+	public JFrame getFenetreAjout() {
+		return fenetreAjout;
+	}
+
+	public void setFenetreAjout(JFrame fenetreAjout) {
+		this.fenetreAjout = fenetreAjout;
+	}
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
 	}
 	
 	 
