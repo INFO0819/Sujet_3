@@ -19,8 +19,15 @@ TO DO :
 </tr>
 </thead><tbody>
 <tr>
-<td>Tout</td>
+<td>Fonctions d'utilisation openSSL</td>
 <td>A faire</td>
 </tr>
-
+<tr>
+<td>Mis en place Socket</td>
+<td>A faire</td>
+</tr>
+<tr>
+<td>Mis en place du scenario</td>
+<td>A faire</td>
+</tr>
 </table>

@@ -29,9 +29,9 @@ public class Menu {
 
 	    JOptionPane jop1 = new JOptionPane(), jop2 = new JOptionPane();
 
-	    ButtonClient1 bL=new ButtonClient1("Client1");
-	    ButtonClient1 bW=new ButtonClient1("Client2");
-	    ButtonClient1 bA=new ButtonClient1("Client3");
+	    ButtonClient1 bL=new ButtonClient1("Client1",1);
+	    ButtonClient1 bW=new ButtonClient1("Client2",2);
+	    ButtonClient1 bA=new ButtonClient1("Client3",3);
 	    JButton bD= new JButton("CA");
 	    
 	    
