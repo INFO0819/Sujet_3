@@ -1,3 +1,5 @@
+package sub_sujet_3;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.*;
@@ -66,10 +68,11 @@ public abstract class Client {
             privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
 
         } catch (FileNotFoundException ex) {
-            System.out.println("Could not find the files");
+            log.println("Could not find the files");
         } catch (IOException e) {
-            System.out.println("Problem while reading the files.");
+            log.println("Problem while reading the files.");
         }
+        Menu m;
     }
 
     /**
@@ -84,7 +87,7 @@ public abstract class Client {
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        String toSend = name.charAt(1)+"," + certifCA;
+        String toSend = "1," + certifCA;
         DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, port);
         DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
         try {
@@ -92,7 +95,7 @@ public abstract class Client {
             socket.send(sentData);
             socket.receive(recvData);
         } catch (IOException e) {
-            System.out.println("Error while using the sockets.");
+            log.println("Error while using the sockets.");
         }
         return this;
     }
@@ -118,7 +121,7 @@ public abstract class Client {
             e.printStackTrace();
         }
 
-        return checkCert(new String(recvData.getData()));
+        return checkCertif(new String(recvData.getData()));
     }
 
     /**
@@ -133,8 +136,7 @@ public abstract class Client {
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        String toSend = name.charAt(1)+"," + message;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, port);
+        DatagramPacket sentData = new DatagramPacket(message.getBytes(), message.length(), server, port);
         DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
 
         try {
@@ -162,13 +164,15 @@ public abstract class Client {
             e.printStackTrace();
         }
 
-        //DatagramPacket sentData = new DatagramPacket(/*ANSWER*/.getBytes(), /*ANSWER*/.length(), server, port);
-	DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
+        DatagramPacket sentData = new DatagramPacket(/*ANSWER*/.getBytes(), /*ANSWER*/
+        .length(), server, port
+        );
+		DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
 
         try {
             socket.setSoTimeout(timeout);
             socket.receive(recvData);
-            //socket.send(sentData);
+            socket.send(sentData);
         } catch (IOException e) {
             e.printStackTrace();
         }

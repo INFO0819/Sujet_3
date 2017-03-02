@@ -3,3 +3,8 @@ out/
 .idea/
 .idea/*
 Sujet_3.iml
+/nbproject/private/
+/build/
+/dist/
+nbproject/*
+nbproject
