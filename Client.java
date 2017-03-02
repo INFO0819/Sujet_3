@@ -85,16 +85,64 @@ public abstract class Client {
 
         try {
 
-            certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+name+".crt")), StandardCharsets.UTF_8);
+            certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+ name + ".crt")), StandardCharsets.UTF_8);
             pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
             privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
-
         } catch (FileNotFoundException ex) {
             System.out.println("Could not find the files");
         } catch (IOException e) {
             System.out.println("Problem while reading the files.");
         }
     }
+    
+    
+    public Client generateKeyPair(){
+    	try {
+			Process p_cmd;
+			String strcmd ="openssl genpkey -algorithm RSA -out " + this.name + ".priv -pkeyopt rsa_keygen_bits:2048 && "
+					+ "openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			int a = p_cmd.waitFor();
+			
+			System.out.println(a);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	return this;
+    }
+    
+    public Client generateCert(){
+    	//openssl req -new -key 2/c2.key > c2.csr
+    	//openssl x509 -req -in c2.csr -out 2/c2.crt -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl
+    	try {
+			Process p_cmd;
+			String strcmd ="openssl x509 -req -in  -out " + name + ".priv -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl"
+					+ "openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			int a = p_cmd.waitFor();
+			
+			System.out.println(a);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	return this;
+    }
+    
+    
     
     /**
      * Function used to send the Certificate
@@ -277,48 +325,55 @@ public abstract class Client {
      */
     public abstract Client receiveDES();
 
-    public Client crypt3DES(String message, String cle, String nomFic){
-        try {
-                Process p_cmd;
-                String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
-                System.out.println(strcmd);
-                Runtime runtime = Runtime.getRuntime();
-                p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-                int a = p_cmd.waitFor();
-
-                System.out.println(a);
-
-        } catch (IOException e) {
-                e.printStackTrace();
-        } catch (InterruptedException e) {
-                e.printStackTrace();
-        }
-
-
-        return this;		
-    }
+	public Client crypt3DES(String message, String cle, String nomFic){
+		try {
+			Process p_cmd;
+			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			int a = p_cmd.waitFor();
+			
+			System.out.println(a);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return this;		
+	}
 	
-    public Client decrypt3DES(String nomFicMessage, String cle){
-        try {
-                Process p_cmd;
-                String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
-                Runtime runtime = Runtime.getRuntime();
+	public Client decrypt3DES(String nomFicMessage, String cle){
+		try {
+			Process p_cmd;
+			String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
+			Runtime runtime = Runtime.getRuntime();
+			
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
+			
 
-                p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-                BufferedReader std = new BufferedReader(new 
-                             InputStreamReader(p_cmd.getInputStream()));
-
-                String s = null;
-                while ((s = std.readLine()) != null) {
-                    System.out.println(s);
-                }
-        } catch (IOException e) {
-                e.printStackTrace();
-        }
-
-
-        return this;		
-    }
+			int a = p_cmd.waitFor();
+			
+			String s = null;
+			while ((s = std.readLine()) != null) {
+			    System.out.println(s);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return this;		
+	}
 	
 	
 	
