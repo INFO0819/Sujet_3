@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.length;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Class designed to handle the client connections and actions The class is
@@ -33,23 +35,27 @@ public abstract class Client {
     /* The server the client will use */
     public InetAddress server;
 
-    /* The port that will be used for the communications */
-    public final static int port = 9632;
+    /* The PORT that will be used for the communications */
+    public final static int PORT = 9632;
 
     /* The length of the received data */
-    public final static int lenR = 9000;
+    public final static int LENR = 9000;
 
     /* The time before timeout */
-    public final static int timeout = 30000;
+    public final static int TIMEOUT = 30000;
+
+    /* REQUESTS VALUES */
+    public final static char REQ_CERTIFICATE = '1';
+    
+    
 
     /**
      * Client main constructor Loads the client keys and the certificate of the
      * CA thanks to its name Therefor the only names you should use are A1, A2,
      * A3 Will show a warning if another name is given
-     *
      * @param name the name of the client
      */
-    public Client(String name) throws UnknownHostException {
+    public Client(String name){
         this.name = name;
 
         if (name.compareTo("A1") != 0 && name.compareTo("A2") != 0 && name.compareTo("A3") != 0) {
@@ -57,7 +63,11 @@ public abstract class Client {
             System.out.println("The name you gave to the Client isn't a predefined name, you should reconsider using it for it may cause bugs.");
         }
 
-        this.server = InetAddress.getByName("localhost");
+        try {
+            this.server = InetAddress.getByName("localhost");
+        } catch (UnknownHostException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         try {
 
@@ -71,26 +81,23 @@ public abstract class Client {
             System.out.println("Problem while reading the files.");
         }
     }
-
+    
     /**
      * Function used to send the Certificate
-     *
      * @return a reference to this object
      */
-    public Client sendCert() {
+    public Client sendREQ(char request) {
         DatagramSocket socket = null;
         try {
             socket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        String toSend = name.charAt(1)+"," + certifCA;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, port);
-        DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
+        String toSend = name.charAt(1)+"," + request;
+        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
         try {
-            socket.setSoTimeout(timeout);
+            socket.setSoTimeout(TIMEOUT);
             socket.send(sentData);
-            socket.receive(recvData);
         } catch (IOException e) {
             System.out.println("Error while using the sockets.");
         }
@@ -102,6 +109,60 @@ public abstract class Client {
      *
      * @return a reference to this object
      */
+    public Client receiveREQ() {
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket();
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
+
+        try {
+            socket.setSoTimeout(TIMEOUT);
+            socket.receive(recvData);
+            
+            switch(recvData.getData()[2]){
+                case REQ_CERTIFICATE :
+                    sendCert();
+                break;
+                default : break;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return this;
+    }
+
+    /**
+     * Function used to send the Certificate
+     * @return a reference to this object
+     */
+    public Client sendCert() {
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket();
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        String toSend = name.charAt(1)+"," + certifCA;
+        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
+        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
+        try {
+            socket.setSoTimeout(TIMEOUT);
+            socket.send(sentData);
+            socket.receive(recvData);
+        } catch (IOException e) {
+            System.out.println("Error while using the sockets.");
+        }
+        return this;
+    }
+
+    /**
+     * Function used to receive the certificate
+     *
+     * @return true if the certificate comes from A2 and is correct
+     */
     public boolean receiveCert() {
         DatagramSocket socket = null;
         try {
@@ -109,16 +170,18 @@ public abstract class Client {
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
+        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
 
         try {
-            socket.setSoTimeout(timeout);
+            socket.setSoTimeout(TIMEOUT);
             socket.receive(recvData);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return checkCert(new String(recvData.getData()));
+        if(recvData.getData()[0] == '2')
+            return checkCert(new String(recvData.getData()));
+        else
+            return false;
     }
 
     /**
@@ -134,11 +197,11 @@ public abstract class Client {
             e.printStackTrace();
         }
         String toSend = name.charAt(1)+"," + message;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, port);
-        DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
+        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
+        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
 
         try {
-            socket.setSoTimeout(timeout);
+            socket.setSoTimeout(TIMEOUT);
             socket.send(sentData);
             socket.receive(recvData);
         } catch (IOException e) {
@@ -162,11 +225,11 @@ public abstract class Client {
             e.printStackTrace();
         }
 
-        //DatagramPacket sentData = new DatagramPacket(/*ANSWER*/.getBytes(), /*ANSWER*/.length(), server, port);
-	DatagramPacket recvData = new DatagramPacket(new byte[lenR], lenR);
+        //DatagramPacket sentData = new DatagramPacket(/*ANSWER*/.getBytes(), /*ANSWER*/.length(), server, PORT);
+	DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
 
         try {
-            socket.setSoTimeout(timeout);
+            socket.setSoTimeout(TIMEOUT);
             socket.receive(recvData);
             //socket.send(sentData);
         } catch (IOException e) {
