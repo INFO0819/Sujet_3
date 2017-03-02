@@ -1,5 +1,7 @@
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -193,7 +195,7 @@ public abstract class Client {
      *
      * @return a reference to this object
      */
-    public abstract Client sendAES(String message);
+    public abstract Client sendDES(String message);
 
     /**
      * Function used to receive a message that has been encrypted using the
@@ -201,6 +203,58 @@ public abstract class Client {
      *
      * @return a reference to this object
      */
-    public abstract Client receiveAES();
+    public abstract Client receiveDES();
 
+	public Client crypt3DES(String message, String cle, String nomFic){
+		try {
+			Process p_cmd;
+			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
+			System.out.println(strcmd);
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			int a = p_cmd.waitFor();
+			
+			System.out.println(a);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return this;		
+	}
+	
+	public Client decrypt3DES(String nomFicMessage, String cle){
+		try {
+			Process p_cmd;
+			String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
+			Runtime runtime = Runtime.getRuntime();
+			
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			BufferedReader std = new BufferedReader(new 
+				     InputStreamReader(p_cmd.getInputStream()));
+			
+			String s = null;
+			while ((s = std.readLine()) != null) {
+			    System.out.println(s);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return this;		
+	}
+	
+	
+	
+	public Client receive3DES(){
+		return this;
+	}
+	
 }
