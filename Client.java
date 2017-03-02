@@ -22,6 +22,8 @@ import java.util.logging.Logger;
  * @author Chaest
  */
 public abstract class Client {
+	/* The authority path. launch scriptCA.sh before using */
+	public static final String caPath = "/tmp/ca/";
 
     /* The certificate of the client */
     public String certifCA;
@@ -33,7 +35,7 @@ public abstract class Client {
     public String privKey;
 
     /* The name of the file of the certificate of the client */
-    public String certifCAFileName;
+    public static String certifCAFileName = "/tmp/ca/certs/ca.cert.pem";
 
     /* The name of the file of the public key of the client */
     public String pubKeyFileName;
@@ -84,23 +86,47 @@ public abstract class Client {
         }
 
         try {
-
-            certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+ name + ".crt")), StandardCharsets.UTF_8);
-            pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
             privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
-        } catch (FileNotFoundException ex) {
-            System.out.println("Could not find the files");
-        } catch (IOException e) {
-            System.out.println("Problem while reading the files.");
+            pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
+            
+        } catch (IOException ex) {
+        	// Si la paire de clé n'est pas trouvable, on la crée
+        	Client.generateKeyPair(this.name);
+        	try {
+				privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
+				pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
+			} catch (Exception e) {
+	            System.out.println("Problem while reading the files. (" + name + "generating key)");
+	            System.exit(1);
+			}
+            
         }
+        
+        privKeyFileName = name + ".priv";
+        pubKeyFileName = name + ".pub";
+        
+        try {
+        	certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+ name + ".crt")), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+        	
+            try {
+				this.generateCert();
+			} catch (Exception e1) {
+				System.out.println(e1.getMessage());
+				System.exit(1);
+			}
+        }
+        
     }
     
     
-    public Client generateKeyPair(){
+    
+    
+    public static void generateKeyPair(String name){
     	try {
 			Process p_cmd;
-			String strcmd ="openssl genpkey -algorithm RSA -out " + this.name + ".priv -pkeyopt rsa_keygen_bits:2048 && "
-					+ "openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
+			String strcmd ="openssl genpkey -algorithm RSA -out " + name + ".priv -pkeyopt rsa_keygen_bits:2048 && "
+					+ "openssl rsa -pubout -in " + name + ".priv -out " + name + ".pub";
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
 			int a = p_cmd.waitFor();
@@ -115,21 +141,31 @@ public abstract class Client {
 			e.printStackTrace();
 		}
     	
-    	return this;
     }
     
-    public Client generateCert(){
-    	//openssl req -new -key 2/c2.key > c2.csr
-    	//openssl x509 -req -in c2.csr -out 2/c2.crt -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl
+    public Client generateCert() throws Exception{
     	try {
 			Process p_cmd;
-			String strcmd ="openssl x509 -req -in  -out " + name + ".priv -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl"
-					+ "openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
+			String strcmd ="openssl req -config " + Client.caPath + "openssl.cnf -key " + privKeyFileName+ 
+					" -new -sha256 -passin pass:\"foobar\" -subj \"/C=FR/ST=France/L=Reims/O=urca/OU=IT/CN=" + name + ".example.com\" "
+					+ "-out " + name + ".csr.pem";
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
+			int code = p_cmd.waitFor();
 			
-			System.out.println(a);
+			if(code == 0){
+				strcmd = "openssl ca -config openssl.cnf -extensions server_cert -days 365 -notext -md sha256 "
+						+ "-passin pass:\"foobar\" -in " + name + ".csr.pem -out " + name + ".cert.pem -batch";
+				System.out.println(strcmd);
+				
+				runtime = Runtime.getRuntime();
+				p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+				code = p_cmd.waitFor();
+				if(code != 0)
+					throw new Exception("Erreur de la génération de certificat");
+			}else{
+				throw new Exception("Erreur de génération de la demande de certificat");
+			}
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

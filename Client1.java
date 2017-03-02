@@ -11,9 +11,9 @@ public class Client1 extends Client {
 	}
 
 	public static void main(String[] args) throws IOException {
-		Client1 c = new Client1("A1");
-		c.crypt3DES("toto", "tata", "123456789123456789.txt");
-		c.generateKeyPair();
+		Client1 c = new Client1("A2");
+		//c.crypt3DES("toto", "tata", "123456789123456789.txt");
+		//Client1.generateKeyPair("A2");
 		//c.decrypt3DES("123456789123456789.txt", "tata");
 		//c.test();
 		
