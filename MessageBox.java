@@ -19,4 +19,5 @@ public class MessageBox{
 	public static void show(String title, String infoMessage){
         JOptionPane.showMessageDialog(null, infoMessage, title, JOptionPane.INFORMATION_MESSAGE);
     }
+	
 }
