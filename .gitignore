@@ -8,3 +8,6 @@ Sujet_3.iml
 /dist/
 nbproject/*
 nbproject
+/bin/
+.classpath
+.project
