@@ -8,6 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import static com.sun.org.apache.xml.internal.security.keys.keyresolver.KeyResolver.length;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,7 +23,7 @@ import java.util.logging.Logger;
  */
 public abstract class Client {
 
-    /* The certificate to use */
+    /* The certificate of the client */
     public String certifCA;
 
     /* The public key of the client */
@@ -27,6 +31,15 @@ public abstract class Client {
 
     /* The private key of the client */
     public String privKey;
+
+    /* The name of the file of the certificate of the client */
+    public String certifCAFileName;
+
+    /* The name of the file of the public key of the client */
+    public String pubKeyFileName;
+
+    /* The name of the file of the private key of the client */
+    public String privKeyFileName;
 
     /* The 3DES key of the client */
     public String desKey;
@@ -60,8 +73,7 @@ public abstract class Client {
     public Client(String name){
         this.name = name;
 
-        if (name.compareTo("A1") != 0 && name.compareTo("A2") != 0 && name.compareTo("A3") != 0) {
-            /* compare the name to "A1", "A2" and "A3" */
+        if (name.compareTo("A1") != 0 && name.compareTo("A2") != 0 && name.compareTo("A3") != 0) { /* compare the name to "A1", "A2" and "A3" */
             System.out.println("The name you gave to the Client isn't a predefined name, you should reconsider using it for it may cause bugs.");
         }
 
@@ -73,7 +85,7 @@ public abstract class Client {
 
         try {
 
-            certifCA = new String(Files.readAllBytes(Paths.get("certifCA.crt")), StandardCharsets.UTF_8);
+            certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+name+".crt")), StandardCharsets.UTF_8);
             pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
             privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
 
@@ -89,17 +101,11 @@ public abstract class Client {
      * @return a reference to this object
      */
     public Client sendREQ(char request) {
-        DatagramSocket socket = null;
         try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        String toSend = name.charAt(1)+"," + request;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
-        try {
+            DatagramSocket socket = new DatagramSocket();
+            String toSend = name.charAt(1)+"," + request;
             socket.setSoTimeout(TIMEOUT);
-            socket.send(sentData);
+            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
         } catch (IOException e) {
             System.out.println("Error while using the sockets.");
         }
@@ -141,19 +147,12 @@ public abstract class Client {
      * @return a reference to this object
      */
     public Client sendCert() {
-        DatagramSocket socket = null;
         try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        String toSend = name.charAt(1)+"," + certifCA;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
-        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
-        try {
+            DatagramSocket socket = new DatagramSocket();
+            String toSend = name.charAt(1)+"," + certifCA;
             socket.setSoTimeout(TIMEOUT);
-            socket.send(sentData);
-            socket.receive(recvData);
+            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
+            socket.receive(new DatagramPacket(new byte[LENR], LENR));
         } catch (IOException e) {
             System.out.println("Error while using the sockets.");
         }
@@ -192,20 +191,19 @@ public abstract class Client {
      * @return a reference to this object
      */
     public Client sendRSA(String message) {
-        DatagramSocket socket = null;
         try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        String toSend = name.charAt(1)+"," + message;
-        DatagramPacket sentData = new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT);
-        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
-
-        try {
+            PrintWriter writer = new PrintWriter(new File("toEncrypt.txt"));
+            writer.write(message);
+            Process p_cmd;
+            String strcmd ="openssl rsautl -encrypt -in toEncrypt.txt -inkey " + privKeyFileName + " -out outencrypted.txt";
+            File f = new File ("outencrypted.txt");
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(strcmd);
+            
+            DatagramSocket socket = new DatagramSocket();
+            String toSend=name.charAt(1)+","+new String(Files.readAllBytes(Paths.get("outencrypted.txt")), StandardCharsets.UTF_8);
             socket.setSoTimeout(TIMEOUT);
-            socket.send(sentData);
-            socket.receive(recvData);
+            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -247,9 +245,20 @@ public abstract class Client {
      * @return a reference to this object
      */
     public boolean checkCert(String cert) {
-        boolean toR = false;
-
-        return toR;
+        try {
+            PrintWriter writer = new PrintWriter(new File("certif.tmp"));
+            writer.write(cert);
+            Process p_cmd;
+            String strcmd ="openssl verify -verbose -CAfile "+certifCAFileName+" certif.tmp";
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(strcmd);
+            return p_cmd.waitFor() == 0;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }        
+        return false;
     }
 
     /**
@@ -268,56 +277,53 @@ public abstract class Client {
      */
     public abstract Client receiveDES();
 
-	public Client crypt3DES(String message, String cle, String nomFic){
-		try {
-			Process p_cmd;
-			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
-			System.out.println(strcmd);
-			Runtime runtime = Runtime.getRuntime();
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
-			
-			System.out.println(a);
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		
-		return this;		
-	}
+    public Client crypt3DES(String message, String cle, String nomFic){
+        try {
+                Process p_cmd;
+                String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
+                System.out.println(strcmd);
+                Runtime runtime = Runtime.getRuntime();
+                p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+                int a = p_cmd.waitFor();
+
+                System.out.println(a);
+
+        } catch (IOException e) {
+                e.printStackTrace();
+        } catch (InterruptedException e) {
+                e.printStackTrace();
+        }
+
+
+        return this;		
+    }
 	
-	public Client decrypt3DES(String nomFicMessage, String cle){
-		try {
-			Process p_cmd;
-			String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
-			Runtime runtime = Runtime.getRuntime();
-			
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			BufferedReader std = new BufferedReader(new 
-				     InputStreamReader(p_cmd.getInputStream()));
-			
-			String s = null;
-			while ((s = std.readLine()) != null) {
-			    System.out.println(s);
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		
-		return this;		
-	}
+    public Client decrypt3DES(String nomFicMessage, String cle){
+        try {
+                Process p_cmd;
+                String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
+                Runtime runtime = Runtime.getRuntime();
+
+                p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+                BufferedReader std = new BufferedReader(new 
+                             InputStreamReader(p_cmd.getInputStream()));
+
+                String s = null;
+                while ((s = std.readLine()) != null) {
+                    System.out.println(s);
+                }
+        } catch (IOException e) {
+                e.printStackTrace();
+        }
+
+
+        return this;		
+    }
 	
 	
 	
-	public Client receive3DES(){
-		return this;
-	}
+    public Client receive3DES(){
+            return this;
+    }
 	
 }
