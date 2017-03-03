@@ -1,23 +1,6 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Random;
@@ -25,9 +8,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Class designed to handle the client connections and actions The class is
- * abstract and should not be instantiated
- *
+ * Class designed to handle the client connections and actions
+ * This class is astract
+ * The class shouldn't be instantiated, please use Client1, Client2 or Client3
  * @author Chaest
  */
 public abstract class Client {
@@ -78,7 +61,6 @@ public abstract class Client {
 	 * CA thanks to its name Therefor the only names you should use are A1, A2,
 	 * A3 Will show a warning if another name is given
 	 * @param name the name of the client
-	 * @param port of the client
 	 */
 	public Client(String name){
 		this.name = name;
@@ -132,7 +114,11 @@ public abstract class Client {
 
 	}
 
-
+	/**
+	 * Function used to generated the keys if the keys couldn't be read
+     * @param name use to name of the client
+	 * @return a reference to this object
+	 */
 	public static void generateKeyPair(String name){
 		try {
 			Process p_cmd;
@@ -152,12 +138,17 @@ public abstract class Client {
 		}
 
 	}
-	
-	public String generateString(int taille) {
+
+	/**
+	 * Function used to generate random Strings
+	 * @param length the length of the String to generate
+	 * @return the generated String
+	 */
+	public String generateString(int length) {
         String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
         StringBuilder salt = new StringBuilder();
         Random rnd = new Random();
-        while (salt.length() < taille) {
+        while (salt.length() < length) {
             int index = (int) (rnd.nextFloat() * SALTCHARS.length());
             salt.append(SALTCHARS.charAt(index));
         }
@@ -166,6 +157,10 @@ public abstract class Client {
 
     }
 
+    /**
+     * Function used to generate new certificate
+     * @return a reference to this object
+     */
 	public Client generateCert() throws Exception{
 		try {
 			Process p_cmd;
@@ -204,6 +199,8 @@ public abstract class Client {
 
 	/**
 	 * Function used to send the Certificate
+     * @param request is the request to send
+     * @param out is the flux to use
 	 * @return a reference to this object
 	 */
 	public Client sendREQ(String request, OutputStream out) {
@@ -219,7 +216,13 @@ public abstract class Client {
 		} // write length of the message 
 		return this;
 	}
-	
+
+    /**
+     * Function used to send Request
+     * @param request is the request to send
+     * @param out is the flux to use
+     * @return a reference to this object
+     */
 	public Client sendREQ(byte[] request, OutputStream out) {
 		DataOutputStream dOut = new DataOutputStream(out);
 
@@ -233,8 +236,13 @@ public abstract class Client {
 		} // write length of the message 
 		return this;
 	}
-	
 
+
+    /**
+     * Function used to receive messages
+     * @param is the flux to us
+     * @return the received message
+     */
 	public byte[] receive(InputStream is) {
 		DataInputStream dIn = new DataInputStream(is);
 		byte[] message = null;
@@ -258,6 +266,7 @@ public abstract class Client {
 
 	/**
 	 * Function used to send the Certificate
+     * @param out is the flux to use
 	 * @return a reference to this object
 	 */
 	public Client sendCert(OutputStream out) {
@@ -275,7 +284,9 @@ public abstract class Client {
 
 	/**
 	 * Function used to send a message encrypted using the private key
-	 *
+     * @param message is the message to send
+     * @param recipientPubKey is the key used to encrypt
+     * @param out is the flux to use	 *
 	 * @return a reference to this object
 	 */
 	public Client sendRSA(String message, byte[] recipientPubKey, OutputStream out) {
@@ -310,7 +321,13 @@ public abstract class Client {
 
 		return this;
 	}
-	
+
+    /**
+     * Function used to decrypt RSA messages
+     * @param data the data to decrypt
+     * @param ficPrivKey the file of the key used to decrypt
+     * @return the decyphered message
+     */
 	public byte[] decryptRSA(byte[] data, String ficPrivKey) {
 		try {
 			
@@ -341,10 +358,10 @@ public abstract class Client {
 
 	/**
 	 * Function used to check the Certificate
+     * @param cert certificate to check
 	 *
 	 * @return a reference to this object
 	 */
-	
 	public boolean checkCert(byte[] cert) {
 		try {
 			FileOutputStream fos = new FileOutputStream(name + "certiftmp");
@@ -363,7 +380,12 @@ public abstract class Client {
 		}        
 		return false;
 	}
-	
+
+    /**
+     * Function used to extract the public key from the certificate
+     * @param cert the certificate from which the key must be extracted
+     * @return public key
+     */
 	public byte[] extractPubKeyCert(byte[] cert){
 		try {
 			FileOutputStream fos = new FileOutputStream(name + "certiftmp");
@@ -393,7 +415,12 @@ public abstract class Client {
 		return new byte[]{};
 	}
 
-
+    /**
+     * Function used to encrypt using 3DES
+     * @param message the message to encrypt
+     * @param cle the key used to encrypt
+     * @return the encrypted message as an array of byte
+     */
 	public byte[] crypt3DES(String message, byte[] cle){
 		try {
 			FileOutputStream fos = new FileOutputStream(name + "crypt3DES");
@@ -425,6 +452,12 @@ public abstract class Client {
 		return new byte[]{};		
 	}
 
+    /**
+     * Decrypt message using 3DES
+     * @param message the message to decrypt
+     * @param cle the key used to decrypt
+     * @return the decyphered message
+     */
 	public String decrypt3DES(byte[] message, byte[] cle){
 		try {
 			FileOutputStream fos = new FileOutputStream(name + "decrypt3DES");
