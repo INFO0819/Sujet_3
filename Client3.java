@@ -17,7 +17,11 @@ public class Client3 extends Client implements Runnable {
 
 	InputStream serverIn;
 	OutputStream serverOut;
-
+	/**
+	 * Basic constructor
+	 * @param name given to the super constructor"
+	 * @param portEntree port TCP" 
+	 */
 	public Client3(String name, int portEntree) throws UnknownHostException {
 		super(name);
 		this.portRecept = portEntree;
@@ -55,6 +59,8 @@ public class Client3 extends Client implements Runnable {
 
 	@Override
 	public void run() {
+		/* INITIALIZATION */
+		/* Receive and check certificated from A3 */
 		System.out.println("Je demarre 3");
 		connect();
 		
@@ -63,8 +69,12 @@ public class Client3 extends Client implements Runnable {
 		if(this.checkCert(certif)){
 			System.out.println("A3 : Certificat A2 valide");
 			sendREQ("1", serverOut);
+			/* FIRST STEP */
+			/* Sends certificate to A2 */
 			sendCert(serverOut);
 			clePubA2 = extractPubKeyCert(certif);
+			/* SECOND STEP */
+			/* Waits for A2's validation */
 			if(new String(receive(serverIn)).equals("0")){
 				System.out.println("A3 : mon certificat n'a pas été validé par A2");
 				return;
