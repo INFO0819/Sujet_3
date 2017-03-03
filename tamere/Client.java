@@ -1,36 +1,49 @@
 package tamere;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.*;
-import java.nio.charset.StandardCharsets;
+import java.io.*;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.io.File;
-import java.io.PrintWriter;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Class designed to handle the client connections and actions
+ * This class is astract
  * The class shouldn't be instantiated, please use Client1, Client2 or Client3
  * @author Chaest
  */
-public class Client {
+public abstract class Client {
+
+    /* The socket used to send and receive data */
+    public Socket socket;
+
+    /* Intput stream for data sending */
+    InputStream in;
+
+    /* Output stream for data receiving */
+    OutputStream out;
 
     /* The certificate of the client */
-    public String certifCA;
+    public byte[] certifCA;
 
     /* The public key of the client */
-    public String pubKey;
+    public byte[] pubKey;
 
     /* The private key of the client */
-    public String privKey;
+    public byte[] privKey;
+
+    /* The public key received in the certificate */
+    public byte[] recipientPubKey;
+
+    /* The authority path. launch scriptCA.sh before using */
+    public static final String caPath = "/tmp/ca/";
 
     /* The name of the file of the certificate of the client */
-    public String certifCAFileName;
+    public static final String certifCAFileName = "/tmp/ca/certs/ca.cert.pem";
 
     /* The name of the file of the public key of the client */
     public String pubKeyFileName;
@@ -39,7 +52,7 @@ public class Client {
     public String privKeyFileName;
 
     /* The 3DES key of the client */
-    public String desKey;
+    public byte [] desKey;
 
     /* The name of the client (A1, A2, A3) */
     public String name;
@@ -47,14 +60,21 @@ public class Client {
     /* The server the client will use */
     public InetAddress server;
 
-    /* The PORT that will be used for the communications */
-    public final static int PORT = 9632;
+    /* The port that will be used for the communications between A1 and A2*/
+    public final static int PORT12 = 10002;
+
+
+    /* The port that will be used for the communications between A2 and A3*/
+    public final static int PORT23 = 10001;
 
     /* The length of the received data */
     public final static int LENR = 9000;
 
     /* The time before timeout */
     public final static int TIMEOUT = 30000;
+
+    /* The String used to generate random Strings */
+    public static final String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
     /* REQUESTS VALUES */
     public final static char REQ_CERTIFICATE = '1';
@@ -83,321 +103,464 @@ public class Client {
 
         try {
 
-            certifCA = new String(Files.readAllBytes(Paths.get("certifCA"+ name + ".crt")), StandardCharsets.UTF_8);
-            pubKey = new String(Files.readAllBytes(Paths.get(name + ".pub")), StandardCharsets.UTF_8);
-            privKey = new String(Files.readAllBytes(Paths.get(name + ".priv")), StandardCharsets.UTF_8);
+            pubKey = Files.readAllBytes(Paths.get(name + ".pub"));
+            privKey = Files.readAllBytes(Paths.get(name + ".priv"));
         } catch (FileNotFoundException ex) {
-            System.out.println("Could not find the files");
+            Log.logln("Could not find the files");
         } catch (IOException e) {
-            System.out.println("Problem while reading the files.");
-        }
-    }
-    
-    
-    public Client generateKeyPair(){
-    	try {
-			Process p_cmd;
-			String strcmd ="openssl genpkey -algorithm RSA -out " + this.name + ".priv -pkeyopt rsa_keygen_bits:2048 && openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
-			Runtime runtime = Runtime.getRuntime();
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
-			
-			System.out.println(a);
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	
-    	return this;
-    }
-    
-    public Client generateCert(){
-    	//openssl req -new -key 2/c2.key > c2.csr
-    	//openssl x509 -req -in c2.csr -out 2/c2.crt -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl
-    	try {
-			Process p_cmd;
-			String strcmd ="openssl x509 -req -in  -out " + name + ".priv -CA ca.crt -CAkey ca.key -CAcreateserial -CAserial ca.srl"
-					+ "openssl rsa -pubout -in " + this.name + ".priv -out " + this.name + ".pub";
-			Runtime runtime = Runtime.getRuntime();
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
-			
-			System.out.println(a);
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-    	
-    	return this;
-    }
-    
-    
-    
-    /**
-     * Function used to send the Certificate
-     * @return a reference to this object
-     */
-    public Client sendREQ(char request) {
-        try {
-            DatagramSocket socket = new DatagramSocket();
-            String toSend = name.charAt(1)+"," + request;
-            socket.setSoTimeout(TIMEOUT);
-            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
-        } catch (IOException e) {
-            Log.logln("Error while using the sockets.");
-        }
-        return this;
-    }
-
-    /**
-     * Function used to receive the certificate
-	 * @param des tell wether the message received has to be decyphered
-     * @return a reference to this object
-     */
-    public Client receiveREQ(boolean des) {
-        DatagramSocket socket = null;
-        try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
-		
-        try {
-            socket.setSoTimeout(TIMEOUT);
-            socket.receive(recvData);
-			
-			String data = new String(recvData.getData());
-            if(des)decrypt3DES(data, desKey);
-			
-            switch(data.charAt(2)){
-                case REQ_CERTIFICATE :
-                    sendCert();
-                break;
-				case REQ_ANSWER : 
-					if(name.charAt(1)=='3')
-						sendDES(name+","+REQ_FORWARD);
-					else
-						sendDES(name+","+REQ_ANSWER);
-				break;
-				case REQ_FORWARD :
-					if(name.charAt(1) == '1')
-						Log.logln("Answer received!");
-					else
-						sendDES(name+","+REQ_FORWARD);
-                default : break;
+            Log.logln("Problem while reading the files.");
+            Log.logln("Generating keypair.");
+            generateKeyPair();
+            try {
+                privKey = Files.readAllBytes(Paths.get(name + ".priv"));
+                pubKey = Files.readAllBytes(Paths.get(name + ".pub"));
+            } catch (Exception ex) {
+                Log.err("Constructor/"+name,"Problem while reading the files. (" + name + "generating key)");
+                System.exit(1);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-        return this;
+
+        privKeyFileName = name + ".priv";
+        pubKeyFileName = name + ".pub";
+
+        try {
+            certifCA = Files.readAllBytes(Paths.get(name + ".cert.pem"));
+        } catch (IOException e) {
+
+            Log.logln("Problem while reading the certificate file.");
+            Log.logln("Generating certificate.");
+            try {
+                generateCert();
+                try {
+                    certifCA = Files.readAllBytes(Paths.get(name + ".cert.pem"));
+                } catch (IOException e1) {
+                    Log.err("Constructor/"+name,e1.getMessage());
+                }
+            } catch (Exception e1) {
+                Log.err("Constructor/"+name,e1.getMessage());
+                System.exit(1);
+            }
+        }
     }
-	/** PREV DEF **/
-	public Client receiveREQ(){return receiveREQ(false);}
+
+
+
+
+
+
+    /*****************************************************************************************/
+    /****************************************GENERATION***************************************/
+    /*****************************************************************************************/
+
+
+
+
+
+
+
 
     /**
-     * Function used to send the Certificate
+     * Function used to generated the keys if the keys couldn't be read
      * @return a reference to this object
      */
-    public Client sendCert() {
+    public Client generateKeyPair(){
         try {
-            DatagramSocket socket = new DatagramSocket();
-            String toSend = name.charAt(1)+"," + certifCA;
-            socket.setSoTimeout(TIMEOUT);
-            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
-            socket.receive(new DatagramPacket(new byte[LENR], LENR));
-        } catch (IOException e) {
-            Log.logln("Error while using the sockets.");
+            Process p_cmd;
+            String strcmd ="openssl genpkey -algorithm RSA -out " + name + ".priv -pkeyopt rsa_keygen_bits:2048 && openssl rsa -pubout -in " + name + ".priv -out " + name + ".pub";
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+            int a = p_cmd.waitFor();
+
+
+        } catch (IOException | InterruptedException  e) {
+            Log.err("KEYGEN/"+name, "Problem with key generation.");
         }
+    	return this;
+    }
+
+    /**
+     * Function used to generate new certificate
+     * @return a reference to this object
+     */
+    public Client generateCert(){
+        try {
+            Process p_cmd;
+            String strcmd ="openssl req -config " + caPath + "openssl.cnf -key " + privKeyFileName+" -new -sha256 -passin pass:\"foobar\" -subj \"/C=FR/ST=France/L=Reims/O=urca/OU=IT/CN=" + name +
+                    ".example.com\" -out " + name + ".csr.pem";
+            Runtime runtime = Runtime.getRuntime();
+            Log.logln(strcmd);
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+
+            int code = p_cmd.waitFor();
+
+            if(code == 0){
+                strcmd = "openssl ca -config " + caPath + "openssl.cnf -extensions server_cert -days 365 -notext -md sha256 -passin pass:\"foobar\" -in " + name + ".csr.pem -out " + name + ".cert.pem -batch";
+
+                runtime = Runtime.getRuntime();
+                Log.logln(strcmd);
+                p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+                code = p_cmd.waitFor();
+                if(code != 0)
+                    Log.err("CERTIFICATE", "Error while creating the certificate1.");
+            }else{
+                Log.err("CERTIFICATE", "Error while creating the certificate2.");
+            }
+
+        } catch (IOException | InterruptedException e) {
+            Log.err("CERTIFICATE/"+name, "Error while creating the certificate3.");
+        }
+
         return this;
+    }
+
+    /**
+     * Function used to generate random Strings
+     * @param length the length of the String to generate
+     * @return the generated String
+     */
+    public String generateString(int length) {
+        StringBuilder salt = new StringBuilder();
+        Random rnd = new Random();
+        while (salt.length() < length) {
+            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
+            salt.append(SALTCHARS.charAt(index));
+        }
+        return (desKey=salt.toString().getBytes()).toString();
+
+    }
+
+
+
+
+
+    /*****************************************************************************************/
+    /****************************************RECEIVING****************************************/
+    /*****************************************************************************************/
+
+
+
+
+
+
+
+
+
+    /**
+     * Function used to receive messages
+     * @return the received message
+     */
+    public byte[] receive(InputStream in) {
+        DataInputStream dIn = new DataInputStream(in);
+        try {
+            byte[] message = new byte[dIn.readInt()];
+            if(message.length>0)
+               dIn.readFully(message, 0, message.length); // read the message
+            return message;
+        } catch (IOException e) {
+            Log.err("RECEPTION/"+name, "Error while reading a message");
+        }
+        return null;
     }
 
     /**
      * Function used to receive the certificate
      * @return true if the certificate comes from A2 and is correct
      */
-    public boolean receiveCert() {
-        DatagramSocket socket = null;
-        try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
+    public boolean receiveCert(InputStream in, OutputStream out) {
+        byte[] certif = receive(in);
+        String toR = "";
+        if(checkCert(certif)){
+            Log.logln("A1 : I validate A2's certificate");
+            toR = "1";
+        }else{
+            toR = "0";
+            Log.logln("A1 : I invalidate A2's certificate");
         }
-        DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
-
-        try {
-            socket.setSoTimeout(TIMEOUT);
-            socket.receive(recvData);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if(recvData.getData()[0] == '2')
-            return checkCert(new String(recvData.getData()));
-        else
-            return false;
+        recipientPubKey = extractPubKeyCert(certif);
+        send(toR.getBytes(),out);
+        return toR.equals("1");
     }
+
+
+
+
+
+
+
+
+
+    /*****************************************************************************************/
+    /******************************************SENDING****************************************/
+    /*****************************************************************************************/
+
+
+
+
+
+
+
+
+
+
+    /**
+     * Function used to send messages
+     * @param message the message to send
+     * @return a reference to this object
+     */
+    public Client send(byte[] message, OutputStream out) {
+        DataOutputStream dOut = new DataOutputStream(out);
+        try {
+            dOut.writeInt(message.length);
+            dOut.write(message, 0, message.length);
+            dOut.flush();
+        } catch (IOException e) {
+            Log.err("SEND/"+name, "Couldn't send data.");
+        }
+        return this;
+    }
+
+
+
+
+    /**
+     * Function used to send the Certificate
+     * @return a reference to this object
+     */
+    public Client sendCert(OutputStream out) {
+        try {
+            DataOutputStream dOut = new DataOutputStream(out);
+            dOut.writeInt(certifCA.length);
+            dOut.write(certifCA, 0, certifCA.length);;
+            dOut.flush(); // Send off the data
+        } catch (IOException e) {
+            Log.err("SENDCERT/"+name, "Error while using the sockets.");
+        }
+        return this;
+    }
+
+
 
     /**
      * Function used to send a message encrypted using the private key
      * @return a reference to this object
      */
-    public Client sendRSA(String message) {
+    public Client sendRSA(byte[] message, OutputStream out) {
         try {
-            PrintWriter writer = new PrintWriter(new File("toEncrypt.txt"));
-            writer.write(message);
+
+            /* LOADING PUBKEY IN FILE */
+            FileOutputStream fos = new FileOutputStream(new File(name + "recipientPubKey"));
+            fos.write(recipientPubKey);
+            fos.close();
+
+            /* LOADING MESSAGE IN FILE */
+            fos = new FileOutputStream(new File(name + "message"));
+            fos.write(message);
+            fos.close();
+
+            /* MESSAGE ENCRYPTION USING RSA (PUBKEY) */
             Process p_cmd;
-            String strcmd ="openssl rsautl -encrypt -in toEncrypt.txt -inkey " + privKeyFileName + " -out outencrypted.txt";
-            File f = new File ("outencrypted.txt");
+            String strcmd = "openssl  smime  -encrypt  -in " + name + "message -binary -outform DEM " + name + "recipientPubKey";
             Runtime runtime = Runtime.getRuntime();
-            p_cmd = runtime.exec(strcmd);
-            
-            DatagramSocket socket = new DatagramSocket();
-            String toSend=name.charAt(1)+","+new String(Files.readAllBytes(Paths.get("outencrypted.txt")), StandardCharsets.UTF_8);
-            socket.setSoTimeout(TIMEOUT);
-            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
-        } catch (IOException e) {
-            e.printStackTrace();
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+            p_cmd.waitFor();
+
+            /* RECEIVING RESULT */
+            DataInputStream std = new DataInputStream(p_cmd.getInputStream());
+            byte[] tab = new byte[std.available()];
+            std.read(tab, 0, std.available());
+
+
+            /* SENDING RESULT */
+            DataOutputStream dOut = new DataOutputStream(out);
+            dOut.writeInt(tab.length);
+            dOut.write(tab, 0, tab.length);;
+            dOut.flush();
+
+        } catch (IOException | InterruptedException e) {
+            Log.err("SENDRSA/"+name, "Error while sending via RSA.");
         }
 
         return this;
     }
 
-    /**
-     * Function used to receive a message that has been encrypted using a private key and to decrypt it
-     * @param filePubKDecrypt : public key file of a message sender
-     * @return if decryption work : the String fileName of the decrypted datap, else the filePubKDecrypt
-     */
-    public String receiveRSA(String filePubKDecrypt) {
-        DatagramSocket socket = null;
-        try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-		
-		DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
 
+
+
+
+
+
+    /*****************************************************************************************/
+    /************************************CRYPTING PART****************************************/
+    /*****************************************************************************************/
+
+
+
+
+    /**
+     * Function used to encrypt using 3DES
+     * @param message the message to encrypt
+     * @param key the key used to encrypt
+     * @return the encrypted message as an array of byte
+     */
+	public byte[] encrypt3DES(String message, byte [] key){
         try {
-            socket.setSoTimeout(TIMEOUT);
-            socket.receive(recvData);
-            String data = new String(recvData.getData());
-            PrintWriter encryptMsg = new PrintWriter(new File ("encryptMsg.txt"));
-            encryptMsg.write(data);
+            FileOutputStream fos = new FileOutputStream(name + "crypt3DES");
+            fos.write(message.getBytes());
+            fos.close();
 
             Process p_cmd;
-            String strcmd ="openssl rsautl -decrypt -in encryptMsg.txt -inkey " + filePubKDecrypt + " -out outdecrypted.txt";
-            File f = new File ("outencrypted.txt");
+            String strcmd ="openssl enc -des3 -pass pass:" + new String(key) + " -in " + name + "crypt3DES";
             Runtime runtime = Runtime.getRuntime();
-            p_cmd = runtime.exec(strcmd);
-            return "outdecrypted.txt";
-        } catch (IOException e) {
-            e.printStackTrace();
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+            int a = p_cmd.waitFor();
+
+            DataInputStream std = new DataInputStream(p_cmd.getInputStream());
+
+            byte[] tab = new byte[std.available()];
+            std.read(tab, 0, std.available());
+
+            return tab;
+
+        } catch (IOException | InterruptedException e) {
+            Log.err("CRYPT/"+name, "Problem while encrypting using DES3.");
         }
 
-        return filePubKDecrypt;
+
+        return null;
+	}
+
+    /**
+     * Decrypt message using 3DES
+     * @param message the message to decrypt
+     * @param key the key used to decrypt
+     * @return the decyphered message
+     */
+	public String decrypt3DES(byte[] message, byte [] key){
+        try {
+            FileOutputStream fos = new FileOutputStream(name + "decrypt3DES");
+            fos.write(message);
+            fos.close();
+
+            Process p_cmd;
+            String strcmd ="openssl enc -d -des3 -pass pass:\"" + new String(key) + "\" -in " + name + "decrypt3DES";
+            Runtime runtime = Runtime.getRuntime();
+
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+            BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
+
+            int a = p_cmd.waitFor();
+
+            String s = "", temp = null;
+            while ((temp = std.readLine()) != null) {
+                s+= temp;
+            }
+
+            return s;
+        } catch (IOException | InterruptedException e) {
+            Log.err("DECRYPT/"+name, "Problem while encrypting using DES3.");
+        }
+        return null;
+	}
+
+
+    /**
+     * Function used to decrypt RSA messages
+     * @param data the data to decrypt
+     * @param pk the key used to decrypt
+     * @return the decyphered message
+     */
+    public byte[] decryptRSA(byte[] data, byte [] pk) {
+        try {
+
+            FileOutputStream fos = new FileOutputStream(new File(name + "data"));
+            fos.write(data);
+            fos.close();
+
+            Process p_cmd;
+            String strcmd = "openssl smime -decrypt  -in " + name + "data" + " -binary -inform DEM -inkey " +  pk;
+
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+            p_cmd.waitFor();
+
+            DataInputStream std = new DataInputStream(p_cmd.getInputStream());
+
+            byte[] tab = new byte[std.available()];
+            std.read(tab, 0, std.available());
+
+            return tab;
+
+        } catch (IOException | InterruptedException e) {
+            Log.err("DECRYPTRSA/"+name, "Problem while decrypting using RSA.");
+        }
+
+        return null;
     }
+
+
+
+
 
     /**
      * Function used to check the Certificate
      * @return a reference to this object
      */
-    public boolean checkCert(String cert) {
+    public boolean checkCert(byte [] cert) {
         try {
-            PrintWriter writer = new PrintWriter(new File("certif.tmp"));
-            writer.write(cert);
+            FileOutputStream fos = new FileOutputStream(name + "certiftmp");
+            fos.write(cert);
+            fos.close();
             Process p_cmd;
-            String strcmd ="openssl verify -verbose -CAfile "+certifCAFileName+" certif.tmp";
+            String strcmd ="openssl verify -verbose -CAfile "+ certifCAFileName + " " + name + "certiftmp";
             Runtime runtime = Runtime.getRuntime();
             p_cmd = runtime.exec(strcmd);
             return p_cmd.waitFor() == 0;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        }        
+        } catch (IOException | InterruptedException ex) {
+            Log.err("CHECKCERT/"+name, "Problem while checking certificate.");
+        }
         return false;
     }
 
+
     /**
-     * Function used to send a message that has been encrypted using the symetric key
-     * @return a reference to this object
+     * Function used to extract the public key from the certificate
+     * @param cert the certificate from which the key must be extracted
      */
-    public Client sendDES(String message){
+    public byte[] extractPubKeyCert(byte[] cert){
         try {
-            DatagramSocket socket = new DatagramSocket();
-            String toSend = crypt3DES(name.charAt(1)+"," + message,desKey);
-            socket.setSoTimeout(TIMEOUT);
-            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
-        } catch (IOException e) {
-            Log.logln("Error while using the sockets.");
+            FileOutputStream fos = new FileOutputStream(name + "certiftmp");
+            fos.write(cert);
+            fos.close();
+
+            Process p_cmd;
+            String strcmd ="openssl x509 -pubkey -noout -in " + name + "certiftmp";
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(strcmd);
+
+
+            p_cmd.waitFor();
+            BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
+            String s = "", temp = null;
+            while ((temp = std.readLine()) != null) {
+                s+= temp;
+            }
+
+            return s.getBytes();
+
+        } catch (IOException | InterruptedException ex) {
+            Log.err("EXTRACT/"+name, "Problem while extracting public key from certificate.");
         }
-		return this;
-	}
+        return null;
+
+    }
+
+
 
     /**
-     * Function used to receive a message that has been encrypted using the symetric key
-     * @return a reference to this object
+     * Function used to start each client's connection
+     * Should be implemented in every Client subclasses
      */
-    public Client receiveDES(){
-		receiveREQ(true);
-		return this;
-	}
-
-	public String crypt3DES(String message, String key){
-		try {
-			Process p_cmd;
-			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + key + " -out $(pwd)/encrypted.des";
-			Runtime runtime = Runtime.getRuntime();
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
-			
-			System.out.println(a);
-			
-			return new String(Files.readAllBytes(Paths.get("encrypted.des")), StandardCharsets.UTF_8);
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-	
-	public Client decrypt3DES(String filename, String key){
-		try {
-			Process p_cmd;
-			String strcmd ="cat "+ filename + " | openssl dec -des3 -pass pass:\"" + key + "\"";
-			Runtime runtime = Runtime.getRuntime();
-			
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
-			
-
-			int a = p_cmd.waitFor();
-			
-			String s = null;
-			while ((s = std.readLine()) != null) {
-			    System.out.println(s);
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		
-		return this;		
-	}
-	
-	
+    public abstract void connect();
 	
 	
 }

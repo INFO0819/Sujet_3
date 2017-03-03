@@ -1,7 +1,13 @@
 package tamere;
 
 
-public class Client3 extends Client{
+import java.io.IOException;
+import java.net.ServerSocket;
+
+public class Client3 extends Client implements Runnable{
+
+	/* Socket used by A2 as the server socket */
+	ServerSocket socketServer;
 
 	/**
 	 * Basic constructor
@@ -9,39 +15,74 @@ public class Client3 extends Client{
 	 */
 	public Client3(){
 		super("A3");
-		
-		
-		/* FIRST STEP */
-		/* Wait for A2 to send request */
-		receiveREQ();
-		
-		/********************/
-		/* RECV PUB KEY???? */
-		/********************/
-		
-		/* THIRD STEP */
-		/* Ask for A2 certificate */
-		sendREQ(REQ_CERTIFICATE);
-		
-		
-		/* FOURTH STEP */
-		/* Receiving and checking certificate */
-		if(receiveCert()){
-			
-			/********************/
-			/* PUB KEY SEND ????*/
-			/********************/
-			
-			/* FIFTH STEP */
-			/* Receive 3DES Key with RSA encryption from A2 */
-			String dKEY = receiveRSA();
-			
-			/* SIXTH STEP */
-			/* Wait for A1 to ask for answer*/
-			receiveREQ();
-			
-		}else{ /* The certificate is incorrect */
-			MessageBox.show("Error in certificate!", "The certificate A1 received was incorrect.\nShutting down simulation.");
+	}
+
+	@Override
+	public void connect(){
+
+
+		try {
+			socketServer = new ServerSocket(PORT23);
+		} catch(IOException e) {
+			Log.err("CONNECT/A3", "Error while creating server socket.");
+			System.exit(-1);
+		}
+
+		/* WAIT FOR A2 CONNECTION */
+		try {
+			socket = socketServer.accept();
+		} catch(IOException e) {
+			Log.err("CONNECT/A3", "Error while waiting for connection.");
+			System.exit(-1);
+		}
+
+
+		try {
+			in = socket.getInputStream();
+			out = socket.getOutputStream();
+			System.out.println("Connection 3<--2 established");
+		} catch (IOException e2) {
+			Log.err("CONNECT/A3", "Error while instantiating flux.");
+		}
+
+	}
+
+
+	@Override
+	public void run() {
+		connect();
+
+		/* INITIALIZATION */
+		/* Receive and check certificated from A2 */
+		if(receiveCert(in,out)){
+
+			/* FIRST STEP */
+			/* Sends certificate to A2 */
+			sendCert(out);
+
+			/* SECOND STEP */
+			/* Waits for A2's validation */
+			if(receive(in).equals("1")) {
+
+				/* THIRD STEP */
+				/* Receive 3 DES Key from A2 */
+				desKey = decryptRSA(receive(in),desKey);
+
+				/* FOURTH STEP */
+				/* Wait for A2 to forward A1's request */
+				String request = decrypt3DES(receive(in),desKey);
+
+				/* FIFTH STEP */
+				/* Generate answer */
+				request += " / I READ IT, SIGNED A3.";
+
+				/* SIXTH STEP */
+				/* Encrypt and send answer */
+				send(encrypt3DES(request,desKey),out);
+
+
+			}
+
 		}
 	}
 

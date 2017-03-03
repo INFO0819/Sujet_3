@@ -43,9 +43,7 @@ public class Log {
 	public static void log(short text){log(text+"");}
 	public static void logln(short text){log(text+"\n");}
 	
-	public static void err(String type, String text){
-		if(ERROR)logln("[ERROR] [type] : ");
-	}
+	public static void err(String type, String text){if(ERROR)logln("[ERROR] ["+type+"] : "+text);}
 	public static void err(String type, char text){err(type, text+"");}
 	public static void err(String type, short text){err(type, text+"");}
 	public static void err(String type, int text){err(type, text+"");}

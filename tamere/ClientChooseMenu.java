@@ -24,34 +24,19 @@ public class ClientChooseMenu extends javax.swing.JFrame {
 		jbA1.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Thread(new Runnable(){
-					@Override
-					public void run(){
-						new Client1();
-					}
-				}).start();
+				new Thread(new Client1()).start();
 			}
 		});
 		jbA2.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Thread(new Runnable(){
-					@Override
-					public void run(){
-						new Client2();
-					}
-				}).start();
+				new Thread(new Client2()).start();
 			}
 		});
 		jbA3.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Thread(new Runnable(){
-					@Override
-					public void run(){
-						new Client3();
-					}
-				}).start();
+				new Thread(new Client3()).start();
 			}
 		});
 		
