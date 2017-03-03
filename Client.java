@@ -1,12 +1,18 @@
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -106,11 +112,16 @@ public abstract class Client {
 		pubKeyFileName = name + ".pub";
 
 		try {
-			certifCA = Files.readAllBytes(Paths.get("certifCA"+ name + ".crt"));
+			certifCA = Files.readAllBytes(Paths.get(name + ".cert.pem"));
 		} catch (IOException e) {
 
 			try {
 				this.generateCert();
+				try {
+					certifCA = Files.readAllBytes(Paths.get(name + ".cert.pem"));
+				} catch (IOException e1) {
+					System.out.println(e1.getMessage());
+				}
 			} catch (Exception e1) {
 				System.out.println(e1.getMessage());
 				System.exit(1);
@@ -129,7 +140,6 @@ public abstract class Client {
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
 			int a = p_cmd.waitFor();
 
-			System.out.println(a);
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -182,24 +192,50 @@ public abstract class Client {
 	 * @return a reference to this object
 	 */
 	public Client sendREQ(String request, OutputStream out) {
+		DataOutputStream dOut = new DataOutputStream(out);
+
 		try {
-			String toSend = name.charAt(1)+"," + request;
-			DataOutputStream dOut = new DataOutputStream(out);
-			dOut.writeUTF(toSend);
-			dOut.flush(); // Send off the data
+			dOut.writeInt(request.getBytes().length);
+			dOut.write(request.getBytes(), 0, request.getBytes().length);
+			dOut.flush();
 		} catch (IOException e) {
-			System.out.println("Error while using the sockets.");
-		}
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} // write length of the message 
 		return this;
 	}
+	
+
+	public byte[] receive(InputStream is) {
+		DataInputStream dIn = new DataInputStream(is);
+		byte[] message = null;
+
+		int length;
+		try {
+			length = dIn.readInt();
+			if(length>0) {
+			    message = new byte[length];
+			    dIn.readFully(message, 0, message.length); // read the message
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}                    // read length of incoming message
+		
+		
+		return message;
+	}
+	
 
 	/**
 	 * Function used to send the Certificate
 	 * @return a reference to this object
 	 */
-	public Client sendCert(String request, OutputStream out) {
+	public Client sendCert(OutputStream out) {
 		try {
 			DataOutputStream dOut = new DataOutputStream(out);
+			
+			dOut.writeInt(this.certifCA.length);
 			dOut.write(this.certifCA, 0, certifCA.length);;
 			dOut.flush(); // Send off the data
 		} catch (IOException e) {
@@ -253,12 +289,15 @@ public abstract class Client {
 	 *
 	 * @return a reference to this object
 	 */
-	public boolean checkCert(String cert) {
+	
+	public boolean checkCert(byte[] cert) {
 		try {
-			PrintWriter writer = new PrintWriter(new File("certif.tmp"));
-			writer.write(cert);
+			FileOutputStream fos = new FileOutputStream(name + "certiftmp");
+			fos.write(cert);
+			fos.close();
+
 			Process p_cmd;
-			String strcmd ="openssl verify -verbose -CAfile "+certifCAFileName+" certif.tmp";
+			String strcmd ="openssl verify -verbose -CAfile "+ certifCAFileName + " " + name + "certiftmp";
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(strcmd);
 			return p_cmd.waitFor() == 0;
@@ -290,25 +329,6 @@ public abstract class Client {
 		return this;
 	}
 
-	public byte[] receive(InputStream is) throws IOException {
-
-		int len;
-		int size = 1024;
-		byte[] buf;
-
-		if (is instanceof ByteArrayInputStream) {
-			size = is.available();
-			buf = new byte[size];
-			len = is.read(buf, 0, size);
-		} else {
-			ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			buf = new byte[size];
-			while ((len = is.read(buf, 0, size)) != -1)
-				bos.write(buf, 0, len);
-			buf = bos.toByteArray();
-		}
-		return buf;
-	}
 
 	public Client crypt3DES(String message, String cle, String nomFic){
 		try {

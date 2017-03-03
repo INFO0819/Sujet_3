@@ -1,4 +1,9 @@
 #/bin/bash
+
+rm A1*
+rm A2*
+rm A3*
+
 rm -R /tmp/ca
 mkdir -p /tmp/ca
 chemin=$(pwd)
@@ -25,7 +30,7 @@ chmod 600 certs/ca.cert.pem
 
 openssl x509 -noout -text -in certs/ca.cert.pem
 
-# #création requête de certificat
+# # création requête de certificat
 # openssl req -config openssl.cnf \
 #       -key A2.priv \
 #       -new -sha256  -passin pass:"foobar" -subj "/C=FR/ST=France/L=Reims/O=urca/OU=IT/CN=lol.example.com" -out test2.csr.pem
