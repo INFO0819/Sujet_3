@@ -1,6 +1,6 @@
 # Sujet_3
 
-
+<h2>Sujet Recu par mail</h2>
 Nous avons 3 clients :
 A1, A2, A3. et une auorité CA.
 Chaque client Ai possède une clé privé, une clé publique certifiée par CA.
@@ -8,26 +8,11 @@ le client A1 doit envoyer un message "requête d'achat  pare exemple" à A2 en u
 Pour avoir la clé d'achange symetrique entre A1 et A2 ensuite entre A2 et A3; il faut que A1 génère une clé S12 qui va envoyer en asymetrique à A2 et ce dernier en fera de meme avec A3 pour avoir la clé de l'échange symétrique.
 
 
-TO DO :
-
-
-
-<table><thead>
-<tr>
-<th>Tâches</th>
-<th>Etat</th>
-</tr>
-</thead><tbody>
-<tr>
-<td>Fonctions d'utilisation openSSL</td>
-<td>A faire</td>
-</tr>
-<tr>
-<td>Mis en place Socket</td>
-<td>A faire</td>
-</tr>
-<tr>
-<td>Mis en place du scenario</td>
-<td>A faire</td>
-</tr>
-</table>
+<h2>Pour la compilation </h2>
+```bash
+javac *.java
+```
+<h2>Pour l'execution </h2>
+```bash
+java 
+```
