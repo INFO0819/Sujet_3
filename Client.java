@@ -17,8 +17,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -150,6 +152,14 @@ public abstract class Client {
 		}
 
 	}
+	
+	public String generateString(int taille){
+		byte[] array = new byte[taille];
+	    new Random().nextBytes(array);
+	    return new String(array, Charset.forName("UTF-8"));
+	}
+	
+	
 
 	public Client generateCert() throws Exception{
 		try {
@@ -213,6 +223,7 @@ public abstract class Client {
 		int length;
 		try {
 			length = dIn.readInt();
+			System.out.println("Debug ===> " + length);
 			if(length>0) {
 			    message = new byte[length];
 			    dIn.readFully(message, 0, message.length); // read the message
@@ -249,32 +260,31 @@ public abstract class Client {
 	 *
 	 * @return a reference to this object
 	 */
-	public Client sendRSA(String message, byte[] recipientPubKey, Socket out) {
+	public Client sendRSA(String message, byte[] recipientPubKey, OutputStream out) {
 		try {
-			PrintWriter writer = new PrintWriter(new File("toEncrypt.txt"));
-			writer.write(message);
+			FileOutputStream fos = new FileOutputStream(new File(name + "recipientPubKey"));
+			fos.write(recipientPubKey);
+			fos.close();
+			
+			fos = new FileOutputStream(new File(name + "message"));
+			fos.write(message.getBytes());
+			fos.close();
+			
 			Process p_cmd;
-			String strcmd ="echo \"" + new String(recipientPubKey) + "\" > " + name + "temp";
+			String strcmd = "openssl  smime  -encrypt  -in " + name + "message -binary -outform DEM " + name + "recipientPubKey";
+			
+			System.out.println("Debug ===> " + strcmd);
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			int a = p_cmd.waitFor();
+			System.out.println("Debug ==> " + p_cmd.waitFor());
 
-
-			strcmd = "echo \"" + message + "\"| openssl rsautl -encrypt -inkey " + name + "temp -pubin";
-			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-
-
-			p_cmd.waitFor();
-			BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
-			String s = "", temp = null;
-			while ((temp = std.readLine()) != null) {
-				s+= temp;
-			}
-
-			File f = new File ("outencrypted.txt");
-
-			DataOutputStream dOut = new DataOutputStream(out.getOutputStream());
-			dOut.write(this.certifCA, 0, certifCA.length);;
+			DataInputStream std = new DataInputStream(p_cmd.getInputStream());	
+			byte[] tab = new byte[std.available()];
+			std.read(tab, 0, std.available());
+			
+			DataOutputStream dOut = new DataOutputStream(out);
+			dOut.writeInt(tab.length);
+			dOut.write(tab, 0, tab.length);;
 			dOut.flush();
 
 		} catch (IOException | InterruptedException e) {
@@ -282,6 +292,35 @@ public abstract class Client {
 		}
 
 		return this;
+	}
+	
+	public byte[] decryptRSA(byte[] data, String ficPrivKey) {
+		try {
+			
+			FileOutputStream fos = new FileOutputStream(new File(name + "data"));
+			fos.write(data);
+			fos.close();
+			
+			Process p_cmd;
+			String strcmd = "openssl smime -decrypt  -in " + name + "data" + " -binary -inform DEM -inkey " +  ficPrivKey;
+			
+			System.out.println("Debug ===> " + strcmd);
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+			System.out.println("Debug ==> " + p_cmd.waitFor());
+
+			DataInputStream std = new DataInputStream(p_cmd.getInputStream());
+			
+			byte[] tab = new byte[std.available()];
+			std.read(tab, 0, std.available());
+			
+			return tab;
+
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		return new byte[]{};
 	}
 
 	/**
@@ -307,6 +346,35 @@ public abstract class Client {
 			Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
 		}        
 		return false;
+	}
+	
+	public byte[] extractPubKeyCert(byte[] cert){
+		try {
+			FileOutputStream fos = new FileOutputStream(name + "certiftmp");
+			fos.write(cert);
+			fos.close();
+
+			Process p_cmd;
+			String strcmd ="openssl x509 -pubkey -noout -in " + name + "certiftmp";
+			Runtime runtime = Runtime.getRuntime();
+			p_cmd = runtime.exec(strcmd);
+			
+			
+			p_cmd.waitFor();
+			BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
+			String s = "", temp = null;
+			while ((temp = std.readLine()) != null) {
+				s+= temp;
+			}
+			
+			return s.getBytes();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException ex) {
+			Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		
+		return new byte[]{};
 	}
 
 	/**

@@ -63,12 +63,16 @@ public class Client1 extends Client implements Runnable{
 		// Négociation avec A2
 		sendCert(out);
 		String s = new String(receive(in));
+		byte[] certif;
+		byte[] clePubA2;
+		
 		if(s.equals("1")){
 			System.out.println("A1 : mon certificat été validé par A2");
-			byte[] certif = receive(in);
+			certif = receive(in);
 			if(this.checkCert(certif)){
 				System.out.println("A1 : Certificat A2 valide par A2");
 				sendREQ("1", out);
+				clePubA2 = extractPubKeyCert(certif);
 			}else{
 				sendREQ("0", out);
 				System.out.println("A1 : Certificat A2 non valide par A2");
@@ -80,7 +84,9 @@ public class Client1 extends Client implements Runnable{
 		}
 		
 		// Attente que A2 négocie avec A3
-		byte[] desKey = receive(in);
+		byte [] receive= receive(in);
+		receive = decryptRSA(receive, privKeyFileName);
+		System.out.println("Debug ==> " + new String(receive));
 		
 		
 		//System.out.println("J'ai envoyé");

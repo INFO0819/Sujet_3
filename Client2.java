@@ -92,9 +92,13 @@ public class Client2 extends Client implements Runnable{
 		
 		//Négociation avec A1
 		byte[] certif = receive(serverIn);
+		byte[] clePubA1;
+		byte[] clePubA3;
+		byte[] certifA2 = certif;
 		if(this.checkCert(certif)){
 			System.out.println("A2 : Certificat A1 valide");
 			sendREQ("1", serverOut);
+			clePubA1 = extractPubKeyCert(certif);
 			sendCert(serverOut);
 			if(new String(receive(serverIn)).equals("0")){
 				System.out.println("A2 : mon certificat n'a pas été validé par A1");
@@ -117,6 +121,7 @@ public class Client2 extends Client implements Runnable{
 			if(this.checkCert(certif)){
 				System.out.println("A2: Certificat A3 valide");
 				sendREQ("1", out);
+				clePubA3 = extractPubKeyCert(certif);
 			}else{
 				sendREQ("0", out);
 				System.out.println("A2 : Certificat A3 non valide");
@@ -126,6 +131,13 @@ public class Client2 extends Client implements Runnable{
 			System.out.println("A2 : mon certificat n'a pas été validé par A3" + s);
 			return;
 		}
+		
+		//réception de la clé 3DES en RSA
+		byte [] receive= receive(in);
+		receive = decryptRSA(receive, privKeyFileName);
+		
+		this.sendRSA(new String(receive), certifA2, serverOut);
+		
 	}
 	
 	

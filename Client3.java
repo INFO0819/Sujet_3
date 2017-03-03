@@ -59,10 +59,12 @@ public class Client3 extends Client implements Runnable {
 		connect();
 		
 		byte[] certif = receive(serverIn);
+		byte[] clePubA2;
 		if(this.checkCert(certif)){
 			System.out.println("A3 : Certificat A2 valide");
 			sendREQ("1", serverOut);
 			sendCert(serverOut);
+			clePubA2 = extractPubKeyCert(certif);
 			if(new String(receive(serverIn)).equals("0")){
 				System.out.println("A3 : mon certificat n'a pas été validé par A2");
 				return;
@@ -73,6 +75,12 @@ public class Client3 extends Client implements Runnable {
 			System.out.println("A3 : Certificat A2 non valide");
 			return;
 		}
+		
+		//envoi clé 3des en RSA
+		String cle3DES = generateString(8);
+		System.out.println("A3 : clé 3DES générée" + cle3DES);
+		this.sendRSA(cle3DES, certif, serverOut);
+		
 	}	
 	
 	
