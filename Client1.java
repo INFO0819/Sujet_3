@@ -10,8 +10,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 public class Client1 extends Client implements Runnable{
+	/* Socket to connect from A1 to A2 */
 	Socket socket;
-	
+	/* input and output stream of the socket */
 	InputStream in;
 	OutputStream out;
 	
@@ -19,12 +20,22 @@ public class Client1 extends Client implements Runnable{
 	public int portEnvoi;
 	private boolean reqOK;
 
+	/**
+	 * Constructor of client 1
+	 * @param name Name of the client
+	 * @param port Output port for the socket
+	 * @param bool Boolean to set if the client will send "Acheter" or anotother invalid thing
+	 * @throws UnknownHostException
+	 */
 	public Client1(String name, int port, boolean bool) throws UnknownHostException {
 		super(name);
 		this.portEnvoi = port;
 		this.reqOK = bool;
 	}
 	
+	/**
+	 * Function to connect to A2 and get stream
+	 */
 	public void connect(){
 		try {
 		    socket = new Socket("localhost", this.portEnvoi);
@@ -51,6 +62,9 @@ public class Client1 extends Client implements Runnable{
 		System.out.println("Connection 1->2 établie");
 	}
 
+	/**
+	 * run code of Client 1
+	 */
 	@Override
 	public void run() {
 		try {
@@ -68,11 +82,14 @@ public class Client1 extends Client implements Runnable{
 		byte[] certif;
 		byte[] clePubA2;
 		
+		// Attente de la validation par A2 du CA de A1
 		if(s.equals("1")){
 			System.out.println("A1 : mon certificat été validé par A2");
+			// Réception du certificat de A2
 			certif = receive(in);
 			if(this.checkCert(certif)){
 				System.out.println("A1 : Certificat A2 valide par A2");
+				// si valide, confirmation à A2 et extraction de la clé publique
 				sendREQ("1", out);
 				clePubA2 = extractPubKeyCert(certif);
 			}else{
@@ -87,6 +104,7 @@ public class Client1 extends Client implements Runnable{
 		
 		// Attente que A2 négocie avec A3
 		byte [] receive= receive(in);
+		// Réception de la clé pour 3DES
 		byte [] cle3DES = decryptRSA(receive, privKeyFileName);
 		
 		System.out.println("A1 : Clé 3DES recue " + new String(cle3DES));
@@ -98,12 +116,13 @@ public class Client1 extends Client implements Runnable{
 		else
 			requete = "refuser";
 		 
-		
+		// Chiffrement du message de requête avec la clé 3DES
 		msgChiffre= crypt3DES(requete, cle3DES);
 		sendREQ(msgChiffre, out);
 		
 		System.out.println("A1 : envoi de la requête \"" + requete + "\"");
 		
+		// Déchiffrement de la réponse obtenue
 		byte [] reponse = receive(in);
 		if(decrypt3DES(reponse, cle3DES).equals("OK"))
 			System.out.println("Le serveur a accepte la requete");
@@ -115,6 +134,7 @@ public class Client1 extends Client implements Runnable{
 	}
 
 	public static void main(String[] args) throws IOException {
+		// Lancement du script pour initaliser le CA
 		Process p_cmd;
 		String strcmd = "./scriptCA.sh";
 		Runtime runtime = Runtime.getRuntime();
@@ -126,7 +146,7 @@ public class Client1 extends Client implements Runnable{
 			e1.printStackTrace();
 		}
 		
-		
+		// Création de A1, A2, A3 et démarrage des Thread
 		Thread thread1 = new Thread(new Client1("A1", 10001, false));
 		Thread thread2 = new Thread(new Client2("A2", 10001, 10002));
 		Thread thread3 = new Thread(new Client3("A3", 10002));
