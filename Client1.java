@@ -147,7 +147,7 @@ public class Client1 extends Client implements Runnable{
 		}
 		
 		// Création de A1, A2, A3 et démarrage des Thread
-		Thread thread1 = new Thread(new Client1("A1", 10001, false));
+		Thread thread1 = new Thread(new Client1("A1", 10001, true));
 		Thread thread2 = new Thread(new Client2("A2", 10001, 10002));
 		Thread thread3 = new Thread(new Client3("A3", 10002));
 		
