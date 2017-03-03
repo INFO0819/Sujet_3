@@ -53,8 +53,6 @@ public abstract class Client {
 	/* The server the client will use */
 	public InetAddress server;
 
-	/* The PORT that will be used for the communications */
-	public int portEcoute;
 
 	/* The length of the received data */
 	public final static int LENR = 9000;
@@ -74,9 +72,8 @@ public abstract class Client {
 	 * @param name the name of the client
 	 * @param port of the client
 	 */
-	public Client(String name, int port){
+	public Client(String name){
 		this.name = name;
-		this.portEcoute = port;
 
 		if (name.compareTo("A1") != 0 && name.compareTo("A2") != 0 && name.compareTo("A3") != 0) { /* compare the name to "A1", "A2" and "A3" */
 			System.out.println("The name you gave to the Client isn't a predefined name, you should reconsider using it for it may cause bugs.");
