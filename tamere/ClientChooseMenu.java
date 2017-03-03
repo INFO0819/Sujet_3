@@ -14,6 +14,7 @@ import java.awt.event.ActionListener;
  */
 public class ClientChooseMenu extends javax.swing.JFrame {
 
+	
 	/**
 	 * Creates new form ClientChooseMenu
 	 */
@@ -23,19 +24,34 @@ public class ClientChooseMenu extends javax.swing.JFrame {
 		jbA1.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Client1();
+				new Thread(new Runnable(){
+					@Override
+					public void run(){
+						new Client1();
+					}
+				}).start();
 			}
 		});
 		jbA2.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Client2();
+				new Thread(new Runnable(){
+					@Override
+					public void run(){
+						new Client2();
+					}
+				}).start();
 			}
 		});
 		jbA3.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent ae) {
-				new Client3();
+				new Thread(new Runnable(){
+					@Override
+					public void run(){
+						new Client3();
+					}
+				}).start();
 			}
 		});
 		

@@ -270,28 +270,37 @@ public class Client {
 
     /**
      * Function used to receive a message that has been encrypted using a private key and to decrypt it
-     * @return the receive decrypted data as a String object
+     * @param filePubKDecrypt : public key file of a message sender
+     * @return if decryption work : the String fileName of the decrypted datap, else the filePubKDecrypt
      */
-    public String receiveRSA() {
+    public String receiveRSA(String filePubKDecrypt) {
         DatagramSocket socket = null;
         try {
             socket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
         }
-
-        //DatagramPacket sentData = new DatagramPacket(/*ANSWER*/.getBytes(), /*ANSWER*/.length(), server, PORT);
+		
 		DatagramPacket recvData = new DatagramPacket(new byte[LENR], LENR);
 
         try {
             socket.setSoTimeout(TIMEOUT);
             socket.receive(recvData);
-            //socket.send(sentData);
+            String data = new String(recvData.getData());
+            PrintWriter encryptMsg = new PrintWriter(new File ("encryptMsg.txt"));
+            encryptMsg.write(data);
+
+            Process p_cmd;
+            String strcmd ="openssl rsautl -decrypt -in encryptMsg.txt -inkey " + filePubKDecrypt + " -out outdecrypted.txt";
+            File f = new File ("outencrypted.txt");
+            Runtime runtime = Runtime.getRuntime();
+            p_cmd = runtime.exec(strcmd);
+            return "outdecrypted.txt";
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return "taggle";
+        return filePubKDecrypt;
     }
 
     /**
@@ -320,7 +329,14 @@ public class Client {
      * @return a reference to this object
      */
     public Client sendDES(String message){
-		
+        try {
+            DatagramSocket socket = new DatagramSocket();
+            String toSend = crypt3DES(name.charAt(1)+"," + message,desKey);
+            socket.setSoTimeout(TIMEOUT);
+            socket.send(new DatagramPacket(toSend.getBytes(), toSend.length(), server, PORT));
+        } catch (IOException e) {
+            Log.logln("Error while using the sockets.");
+        }
 		return this;
 	}
 
@@ -333,32 +349,30 @@ public class Client {
 		return this;
 	}
 
-	public Client crypt3DES(String message, String cle, String nomFic){
+	public String crypt3DES(String message, String key){
 		try {
 			Process p_cmd;
-			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out $(pwd)/" + nomFic;
+			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + key + " -out $(pwd)/encrypted.des";
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
 			int a = p_cmd.waitFor();
 			
 			System.out.println(a);
 			
+			return new String(Files.readAllBytes(Paths.get("encrypted.des")), StandardCharsets.UTF_8);
+			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
-		return this;		
+		return null;
 	}
 	
-	public Client decrypt3DES(String nomFicMessage, String cle){
+	public Client decrypt3DES(String filename, String key){
 		try {
 			Process p_cmd;
-			String strcmd ="cat "+ nomFicMessage + " | openssl dec -des3 -pass pass:\"" + cle + "\"";
+			String strcmd ="cat "+ filename + " | openssl dec -des3 -pass pass:\"" + key + "\"";
 			Runtime runtime = Runtime.getRuntime();
 			
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
