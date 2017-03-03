@@ -11,19 +11,29 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 public class Client2 extends Client implements Runnable{
+	/* Socket used by A2 to communicate with A3 */
 	Socket socket;
+	/* Socket from the Client class will be used A1-A2 communication */
+	/* Socket used by A2 as the server socket */
 	ServerSocket socketServeur;
 	/* The PORT that will be used for the communications */
 	public int portEnvoi;
 	public int portRecept;
-	
+
+	/* Corresponding input output */
 	InputStream in;
 	OutputStream out;
+
 	InputStream serverIn;
 	OutputStream serverOut;
+
+	/* Socket from the Client class will be used A1-A2 communication */
 	Socket socketClient ;
 
-
+	/**
+	 * Basic constructor
+	 * The name given to the super constructor is "A1"
+	 */
 	public Client2(String name, int portEntree, int portSortie) throws UnknownHostException {
 		super(name);
 		this.portEnvoi = portSortie;
@@ -38,7 +48,7 @@ public class Client2 extends Client implements Runnable{
 		    System.exit(-1);
 		}
 	 
-		// Attente d'une connexion d'un client
+		/* WAIT FOR A1 CONNECTION */
 		try {
 		    socketClient = socketServeur.accept();
 		} catch(IOException e) {
@@ -81,6 +91,8 @@ public class Client2 extends Client implements Runnable{
 
 	@Override
 	public void run() {
+		/* INITIALIZATION */
+		/* Receive and check certificated from A1 */
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
