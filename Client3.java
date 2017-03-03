@@ -78,8 +78,18 @@ public class Client3 extends Client implements Runnable {
 		
 		//envoi clé 3des en RSA
 		String cle3DES = generateString(8);
-		System.out.println("A3 : clé 3DES générée" + cle3DES);
+		System.out.println("A3 : clé 3DES générée : " + cle3DES);
 		this.sendRSA(cle3DES, certif, serverOut);
+		
+
+		// réception demande chiffrée en 3DES
+		byte [] requete =receive(serverIn);
+		if(decrypt3DES(requete, cle3DES.getBytes()).equals("acheter")){			
+			sendREQ(crypt3DES("OK", cle3DES.getBytes()), serverOut);
+		}else{
+			sendREQ(crypt3DES("KO", cle3DES.getBytes()), serverOut);
+		
+		}
 		
 	}	
 	

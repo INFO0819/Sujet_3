@@ -138,6 +138,12 @@ public class Client2 extends Client implements Runnable{
 		
 		this.sendRSA(new String(receive), certifA2, serverOut);
 		
+		// réception demande chiffrée en 3DES
+		byte [] requete =receive(serverIn);
+		sendREQ(requete, out);
+
+		receive= receive(in);
+		sendREQ(receive, serverOut);
 	}
 	
 	

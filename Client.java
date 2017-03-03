@@ -153,13 +153,18 @@ public abstract class Client {
 
 	}
 	
-	public String generateString(int taille){
-		byte[] array = new byte[taille];
-	    new Random().nextBytes(array);
-	    return new String(array, Charset.forName("UTF-8"));
-	}
-	
-	
+	public String generateString(int taille) {
+        String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+        StringBuilder salt = new StringBuilder();
+        Random rnd = new Random();
+        while (salt.length() < taille) {
+            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
+            salt.append(SALTCHARS.charAt(index));
+        }
+        String saltStr = salt.toString();
+        return saltStr;
+
+    }
 
 	public Client generateCert() throws Exception{
 		try {
@@ -215,6 +220,20 @@ public abstract class Client {
 		return this;
 	}
 	
+	public Client sendREQ(byte[] request, OutputStream out) {
+		DataOutputStream dOut = new DataOutputStream(out);
+
+		try {
+			dOut.writeInt(request.length);
+			dOut.write(request, 0, request.length);
+			dOut.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} // write length of the message 
+		return this;
+	}
+	
 
 	public byte[] receive(InputStream is) {
 		DataInputStream dIn = new DataInputStream(is);
@@ -223,7 +242,6 @@ public abstract class Client {
 		int length;
 		try {
 			length = dIn.readInt();
-			System.out.println("Debug ===> " + length);
 			if(length>0) {
 			    message = new byte[length];
 			    dIn.readFully(message, 0, message.length); // read the message
@@ -273,10 +291,9 @@ public abstract class Client {
 			Process p_cmd;
 			String strcmd = "openssl  smime  -encrypt  -in " + name + "message -binary -outform DEM " + name + "recipientPubKey";
 			
-			System.out.println("Debug ===> " + strcmd);
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			System.out.println("Debug ==> " + p_cmd.waitFor());
+			p_cmd.waitFor();
 
 			DataInputStream std = new DataInputStream(p_cmd.getInputStream());	
 			byte[] tab = new byte[std.available()];
@@ -304,10 +321,9 @@ public abstract class Client {
 			Process p_cmd;
 			String strcmd = "openssl smime -decrypt  -in " + name + "data" + " -binary -inform DEM -inkey " +  ficPrivKey;
 			
-			System.out.println("Debug ===> " + strcmd);
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
-			System.out.println("Debug ==> " + p_cmd.waitFor());
+			p_cmd.waitFor();
 
 			DataInputStream std = new DataInputStream(p_cmd.getInputStream());
 			
@@ -377,36 +393,25 @@ public abstract class Client {
 		return new byte[]{};
 	}
 
-	/**
-	 * Function used to send a message that has been encrypted using the
-	 * symetric key
-	 *
-	 * @return a reference to this object
-	 */
-	public Client sendDES(String message, String cle, OutputStream out){
+
+	public byte[] crypt3DES(String message, byte[] cle){
 		try {
-			this.crypt3DES(message, cle, this.name + "temp");
-			byte[] bFile = Files.readAllBytes(new File(this.name + "temp").toPath());
-
-			DataOutputStream dOut = new DataOutputStream(out);
-			dOut.write(bFile);
-			dOut.flush(); // Send off the data
-		} catch (IOException e) {
-			System.out.println("Error while using the sockets.");
-		}
-		return this;
-	}
-
-
-	public Client crypt3DES(String message, String cle, String nomFic){
-		try {
+			FileOutputStream fos = new FileOutputStream(name + "crypt3DES");
+			fos.write(message.getBytes());
+			fos.close();
+			
 			Process p_cmd;
-			String strcmd ="echo \""+ message + "\" | openssl enc -des3 -pass pass:" + cle + " -out " + nomFic;
+			String strcmd ="openssl enc -des3 -pass pass:" + new String(cle) + " -in " + name + "crypt3DES";
 			Runtime runtime = Runtime.getRuntime();
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
 			int a = p_cmd.waitFor();
+			
+			DataInputStream std = new DataInputStream(p_cmd.getInputStream());
+			
+			byte[] tab = new byte[std.available()];
+			std.read(tab, 0, std.available());
 
-			System.out.println(a);
+			return tab;
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -417,18 +422,21 @@ public abstract class Client {
 		}
 
 
-		return this;		
+		return new byte[]{};		
 	}
 
-	public String decrypt3DES(String nomFicMessage, String cle){
+	public String decrypt3DES(byte[] message, byte[] cle){
 		try {
+			FileOutputStream fos = new FileOutputStream(name + "decrypt3DES");
+			fos.write(message);
+			fos.close();
+						
 			Process p_cmd;
-			String strcmd ="openssl enc -d -des3 -pass pass:\"" + cle + "\" -in " + nomFicMessage;
+			String strcmd ="openssl enc -d -des3 -pass pass:\"" + new String(cle) + "\" -in " + name + "decrypt3DES";
 			Runtime runtime = Runtime.getRuntime();
 
 			p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
 			BufferedReader std = new BufferedReader(new InputStreamReader(p_cmd.getInputStream()));
-
 
 			int a = p_cmd.waitFor();
 

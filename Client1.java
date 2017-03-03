@@ -17,10 +17,12 @@ public class Client1 extends Client implements Runnable{
 	
 	/* The PORT that will be used for the communications */
 	public int portEnvoi;
+	private boolean reqOK;
 
-	public Client1(String name, int port) throws UnknownHostException {
+	public Client1(String name, int port, boolean bool) throws UnknownHostException {
 		super(name);
 		this.portEnvoi = port;
+		this.reqOK = bool;
 	}
 	
 	public void connect(){
@@ -85,16 +87,47 @@ public class Client1 extends Client implements Runnable{
 		
 		// Attente que A2 négocie avec A3
 		byte [] receive= receive(in);
-		receive = decryptRSA(receive, privKeyFileName);
-		System.out.println("Debug ==> " + new String(receive));
+		byte [] cle3DES = decryptRSA(receive, privKeyFileName);
 		
+		System.out.println("A1 : Clé 3DES recue " + new String(cle3DES));
+		
+		byte [] msgChiffre;
+		String requete;
+		if(this.reqOK)
+			requete = "acheter";
+		else
+			requete = "refuser";
+		 
+		
+		msgChiffre= crypt3DES(requete, cle3DES);
+		sendREQ(msgChiffre, out);
+		
+		System.out.println("A1 : envoi de la requête \"" + requete + "\"");
+		
+		byte [] reponse = receive(in);
+		if(decrypt3DES(reponse, cle3DES).equals("OK"))
+			System.out.println("Le serveur a accepte la requete");
+		else
+			System.out.println("Le serveur a refuse la requete");
 		
 		//System.out.println("J'ai envoyé");
 		
 	}
 
 	public static void main(String[] args) throws IOException {
-		Thread thread1 = new Thread(new Client1("A1", 10001));
+		Process p_cmd;
+		String strcmd = "./scriptCA.sh";
+		Runtime runtime = Runtime.getRuntime();
+		p_cmd = runtime.exec(new String[] { "bash", "-c",strcmd});
+		try {
+			p_cmd.waitFor();
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		
+		Thread thread1 = new Thread(new Client1("A1", 10001, false));
 		Thread thread2 = new Thread(new Client2("A2", 10001, 10002));
 		Thread thread3 = new Thread(new Client3("A3", 10002));
 		
@@ -109,14 +142,6 @@ public class Client1 extends Client implements Runnable{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
-		
-		
-		//c.crypt3DES("toto", "tata", "123456789123456789.txt");
-		//Client1.generateKeyPair("A2");
-		//c.decrypt3DES("123456789123456789.txt", "tata");
-		//c.test();
 		
 	}	
 	
